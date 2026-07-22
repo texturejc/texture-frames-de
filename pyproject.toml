@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texture-frames-de"
+version = "0.1.0"
+description = "German frame-semantic parser (gbert encoder trained on the SALSA corpus; German counterpart of texture-frames)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "James Carney", email = "carneyjp@gmail.com" }]
+keywords = ["framenet", "salsa", "german", "semantic-parsing", "srl", "nlp", "gbert"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Natural Language :: German",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.0",
+    "transformers>=4.44",
+    "sentencepiece>=0.1.99",
+    "huggingface_hub>=0.20",
+    "simplemma>=1.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+texture-frames-de = "texture_frames_de.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/texturejc/texture-frames-de"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+texture_frames_de = ["data/*.json"]

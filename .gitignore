@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+.ipynb_checkpoints/
+# never commit the licensed corpus or trained weights
+extracted/
+*.xml
+*.pt
+outputs/
