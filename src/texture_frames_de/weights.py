@@ -23,7 +23,15 @@ def _load_json(repo: str, filename: str):
 def _backbone_from_base(base_model: str):
     from transformers import AutoConfig, AutoModel
 
-    cfg = AutoConfig.from_pretrained(base_model)  # tiny config.json download only
+    try:
+        cfg = AutoConfig.from_pretrained(base_model)  # tiny config.json download only
+    except ValueError:
+        # deepset/gbert-large's config.json omits `model_type`; some transformers
+        # versions can't infer it from `architectures` and raise. gbert is a BERT
+        # model, so load it explicitly with BertConfig (which ignores model_type).
+        from transformers import BertConfig
+
+        cfg = BertConfig.from_pretrained(base_model)
     return AutoModel.from_config(cfg)
 
 

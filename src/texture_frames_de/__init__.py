@@ -8,4 +8,4 @@
 from .pipeline import Argument, FrameAnnotation, FrameParser
 
 __all__ = ["FrameParser", "FrameAnnotation", "Argument"]
-__version__ = "0.1.0"
+__version__ = "0.1.1"
