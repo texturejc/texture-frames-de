@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "texture-frames-de"
-version = "0.1.1"
+version = "0.2.0"
 description = "German frame-semantic parser (gbert encoder trained on the SALSA corpus; German counterpart of texture-frames)."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -27,6 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
+open-vocab = ["HanTa>=1.1"]   # German POS tagging for open-vocabulary trigger detection
 
 [project.scripts]
 texture-frames-de = "texture_frames_de.cli:main"

@@ -11,6 +11,9 @@ candidate bias 4.0; args NULL bias 2.0; trigger rate threshold 0.5).
 """
 from __future__ import annotations
 
+import json
+import math
+import os
 from dataclasses import dataclass, field
 
 import torch
@@ -31,10 +34,12 @@ from ._tokenization import (
     word_at,
 )
 from .lexicon import Lexicon, default_lemmatizer
-from .trigger import TriggerDetector
+from .trigger import TriggerDetector, content_verb_locs
 
 DEFAULT_FRAME_REPO = "texturejc/texture-frames-de-frame"
 DEFAULT_ARGS_REPO = "texturejc/texture-frames-de-args"
+
+_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 
 @dataclass
@@ -67,11 +72,15 @@ class FrameParser:
         null_bias: float = 2.0,    # dev-picked NULL-reject threshold for args
         trigger_threshold: float = 0.5,
         max_length: int = 320,
+        open_vocab: bool = False,  # detect out-of-lexicon verbs via POS + prior-correct
+        prior_alpha: float = 0.75,  # class-prior correction strength for OOV triggers
     ):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.max_length = max_length
         self.frame_bias = frame_bias
         self.null_bias = null_bias
+        self.open_vocab = open_vocab
+        self.prior_alpha = prior_alpha
 
         self.lexicon = Lexicon()
         self.lemmatizer = default_lemmatizer()
@@ -87,6 +96,16 @@ class FrameParser:
         self._frame_end = self.frame_tok.convert_tokens_to_ids(TRIGGER_END)
         self._null_id = self.role2id[NULL_ROLE]
 
+        # log class-prior over the frame label space (from train counts) — used to
+        # de-bias the frame head for OOV triggers, which have no candidate mask.
+        counts = json.load(open(os.path.join(_DATA, "frame_counts.json"), encoding="utf-8"))
+        tot, n = sum(counts.values()), len(self.frame2id)
+        self._logprior = torch.tensor(
+            [math.log((counts.get(f, 0) + 1) / (tot + n))
+             for f, _ in sorted(self.frame2id.items(), key=lambda kv: kv[1])],
+            device=self.device,
+        )
+
     # -- public ------------------------------------------------------------ #
     @torch.no_grad()
     def parse(self, text: str) -> list[FrameAnnotation]:
@@ -94,7 +113,7 @@ class FrameParser:
         trigger. Text should be whitespace-tokenized (punctuation spaced out),
         as SALSA/TIGER surfaces are."""
         annotations = []
-        for loc in self.trigger_det.triggers(text):
+        for loc in self._triggers(text):
             frame = self._frame(text, loc)
             args = self._args(text, loc, frame)
             annotations.append(
@@ -105,6 +124,14 @@ class FrameParser:
         return annotations
 
     # -- stages ------------------------------------------------------------ #
+    def _triggers(self, text: str) -> list[int]:
+        """Trigger char offsets: the lexicon rule, plus (open_vocab) POS-detected
+        content verbs the lexicon missed. Deduped by whitespace word, in order."""
+        locs = set(self.trigger_det.triggers(text))
+        if self.open_vocab:
+            locs |= set(content_verb_locs(text))
+        return sorted(locs)
+
     def _frame(self, text: str, loc: int) -> str:
         enc = self.frame_tok(
             mark_trigger(text, loc), truncation=True, max_length=self.max_length,
@@ -121,6 +148,11 @@ class FrameParser:
         if cand_ids:
             logits = logits.clone()
             logits[torch.tensor(cand_ids, device=self.device)] += self.frame_bias
+        elif self.open_vocab and self.prior_alpha:
+            # OOV trigger: no candidate mask available. De-bias the frame head with
+            # the class prior so its genuine (rank-1/2) semantic signal wins over
+            # high-frequency generic frames.
+            logits = logits - self.prior_alpha * self._logprior
         return self.id2frame[int(logits.argmax())]
 
     def _allowed_role_ids(self, frame: str):

@@ -53,3 +53,44 @@ class TriggerDetector:
     def triggers(self, text: str) -> list[int]:
         """Char offsets (word starts) of the trigger words in text."""
         return [s for (s, e) in whitespace_words(text) if self.is_trigger(text[s:e])]
+
+
+# --------------------------------------------------------------------------- #
+# Open-vocabulary trigger detection (optional; needs HanTa for German POS)     #
+# --------------------------------------------------------------------------- #
+
+_HANTA = None
+
+
+def _hanta():
+    """Lazily load the HanTa German tagger (optional dependency)."""
+    global _HANTA
+    if _HANTA is None:
+        try:
+            from HanTa import HanoverTagger
+
+            _HANTA = HanoverTagger.HanoverTagger("morphmodel_ger.pgz")
+        except Exception as e:  # pragma: no cover
+            raise ImportError(
+                "open-vocabulary mode needs HanTa — `pip install HanTa` "
+                "(or install the package with the [open-vocab] extra)."
+            ) from e
+    return _HANTA
+
+
+def content_verb_locs(text: str) -> list[int]:
+    """Char offsets of full-verb tokens (STTS `VV*`), via HanTa POS tagging.
+
+    These are the reliable frame-evokers the SALSA lexicon rule misses on
+    out-of-domain text (e.g. everyday verbs like `essen`). Nouns are deliberately
+    excluded here — they are far noisier as triggers.
+    """
+    words = whitespace_words(text)
+    if not words:
+        return []
+    tags = _hanta().tag_sent([text[s:e] for (s, e) in words])
+    out = []
+    for (s, _e), (_w, _lem, pos) in zip(words, tags):
+        if pos.startswith("VV"):  # VV(FIN)/VV(INF)/VV(PP)/VV(IZU)
+            out.append(s)
+    return out

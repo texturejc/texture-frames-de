@@ -188,6 +188,51 @@ Lower `null_bias` for higher argument recall (recovers peripheral roles like
 *Place*/*Time* that were detected but rejected); lower `trigger_threshold` to fire
 on more predicates.
 
+### Open-vocabulary mode (beyond SALSA's lemmas)
+
+By default the parser is **newspaper-domain** — it only fires on SALSA's ~665
+covered lemmas, so an everyday sentence like *"Der Junge aß einen Apfel"* returns
+nothing (`essen` was never in SALSA). But the frame head runs on gbert's
+*contextual* semantics, so it already represents unseen verbs well — the correct
+frame typically ranks #1–2 in its raw logits, just beaten by a high-frequency
+generic frame. `open_vocab=True` exploits this:
+
+- **POS-based trigger detection** (via [HanTa](https://github.com/wartaal/HanTa)):
+  content verbs the lexicon rule missed become triggers;
+- **class-prior correction**: for those out-of-lexicon triggers, the frame head's
+  logits are de-biased by the training class-prior, letting the genuine semantic
+  signal win.
+
+```bash
+pip install "texture-frames-de[open-vocab] @ git+https://github.com/texturejc/texture-frames-de"
+```
+```python
+parser = FrameParser(open_vocab=True)      # prior_alpha=0.75 by default
+for ann in parser.parse("Der Junge aß einen Apfel ."):
+    print(ann.frame, "|", ann.trigger)
+# Ingest_substance | aß      (default mode returns nothing here)
+```
+
+**What it does — and doesn't:**
+
+- Recovers the **exact frame** when SALSA trained it: `aß`/`trank`/`schluckte` →
+  **Ingest_substance**, `rannte` → **Self_motion**.
+- Falls back to the nearest **trained** frame otherwise (SALSA has no Cooking or
+  Sleep frame): `kochte` → *Creating*, `schlief` → *Posture* — semantically
+  adjacent but coarse.
+- **Frames, not always arguments.** Open-vocabulary recovers the *frame*; argument
+  extraction often returns nothing for these, because the recovered frames are
+  rare in SALSA (e.g. `Ingest_substance` has 7 training instances) so the args
+  head barely learned their roles. Frame labelling is the reliable part.
+- **In-domain frame accuracy is unchanged** (prior-correction costs ~0: 0.906 →
+  0.910 on test). But **trigger recall rises to ~0.99 while precision drops**
+  (0.895 → 0.588 on SALSA test — a lower bound, since SALSA's partial annotation
+  counts many real verbs as "false positives"). It fires on *every* content verb,
+  so expect some spurious frames.
+
+Opt-in by design: use it for open-domain coverage, leave it off for
+newspaper-domain precision.
+
 ### Command line
 
 ```bash
