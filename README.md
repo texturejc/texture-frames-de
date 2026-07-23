@@ -334,14 +334,21 @@ Public on the Hugging Face Hub; downloaded and cached automatically:
 
 ## Acknowledgements
 
+**This project would not have been possible without Professor Sebastian Padó**,
+who generously made the **SALSA corpus** available for this work. The entire German
+parser is trained on SALSA, and we are deeply grateful for his support and for his
+foundational contributions to German frame semantics.
+
+We also thank the wider **SALSA** project team (Aljoscha Burchardt, Katrin Erk,
+Anette Frank, Andrea Kowalski, and Manfred Pinkal) and the **TIGER** project for
+the corpus it builds on.
+
 This work builds directly on **David Chanin's**
 [`frame-semantic-transformer`](https://github.com/chanind/frame-semantic-transformer)
 and its encoder rearchitecture in
 [`texture-frames`](https://github.com/texturejc/Texture_Frames), which shaped the
-three-stage decomposition, marker pooling, and detect-then-classify design. We
-thank the **SALSA** project (Aljoscha Burchardt, Katrin Erk, Anette Frank, Andrea
-Kowalski, Sebastian Padó, Manfred Pinkal) and the **TIGER** project for the corpus,
-**deepset** for `gbert-large`, and the **simplemma** authors.
+three-stage decomposition, marker pooling, and detect-then-classify design. Thanks
+also to **deepset** for `gbert-large` and the **simplemma** authors.
 
 ---
 
