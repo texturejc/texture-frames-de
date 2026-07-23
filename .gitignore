@@ -10,3 +10,6 @@ extracted/
 *.xml
 *.pt
 outputs/
+
+# private strategy / clinical notes — do not publish
+PROJECT_CONSIDERATIONS.md
