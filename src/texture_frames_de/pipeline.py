@@ -109,9 +109,10 @@ class FrameParser:
     # -- public ------------------------------------------------------------ #
     @torch.no_grad()
     def parse(self, text: str) -> list[FrameAnnotation]:
-        """Parse a German sentence into frame annotations, one per detected
-        trigger. Text should be whitespace-tokenized (punctuation spaced out),
-        as SALSA/TIGER surfaces are."""
+        """Parse a single German sentence into frame annotations, one per
+        detected trigger. Text should be whitespace-tokenized (punctuation
+        spaced out), as SALSA/TIGER surfaces are. For multi-sentence input,
+        use `parse_document`."""
         annotations = []
         for loc in self._triggers(text):
             frame = self._frame(text, loc)
@@ -121,6 +122,39 @@ class FrameParser:
                     trigger=word_at(text, loc), trigger_loc=loc, frame=frame, arguments=args
                 )
             )
+        return annotations
+
+    def parse_document(self, text: str) -> list[FrameAnnotation]:
+        """Sentence-split `text` (NLTK Punkt, German) and run `parse` per
+        sentence. Returns a flat list of `FrameAnnotation` with `trigger_loc`
+        and `Argument.start`/`end` shifted to offsets in the original document.
+
+        Requires the optional `nltk` dependency:
+            pip install "texture-frames-de[sentencize]"
+        """
+        try:
+            import nltk
+            from nltk.tokenize import PunktTokenizer
+        except ImportError as e:
+            raise ImportError(
+                "parse_document requires nltk. Install with: "
+                'pip install "texture-frames-de[sentencize]"'
+            ) from e
+        try:
+            nltk.data.find("tokenizers/punkt_tab")
+        except LookupError:
+            nltk.download("punkt_tab", quiet=True)
+
+        tokenizer = PunktTokenizer("german")
+        annotations = []
+        for sent_start, sent_end in tokenizer.span_tokenize(text):
+            for ann in self.parse(text[sent_start:sent_end]):
+                ann.trigger_loc += sent_start
+                for arg in ann.arguments:
+                    if arg.start >= 0:
+                        arg.start += sent_start
+                        arg.end += sent_start
+                annotations.append(ann)
         return annotations
 
     # -- stages ------------------------------------------------------------ #

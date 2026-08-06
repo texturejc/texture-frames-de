@@ -28,6 +28,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest"]
 open-vocab = ["HanTa>=1.1"]   # German POS tagging for open-vocabulary trigger detection
+sentencize = ["nltk>=3.8"]    # Punkt German model for FrameParser.parse_document
 
 [project.scripts]
 texture-frames-de = "texture_frames_de.cli:main"
